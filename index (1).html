@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Bunker Survival DApp</title>
+
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- ethers.js v5 -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+</head>
+<body>
+  <div class="app">
+
+    <!-- HEADER -->
+    <header class="app-header">
+      <div>
+        <h1>Bunker Survival DApp</h1>
+        <p class="subtitle">
+          Create bunkers, contribute test ETH, and track player addresses per bunker.
+        </p>
+      </div>
+
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <div class="subtitle-small" style="text-align:right;">
+          <div>Network: <b id="networkStatus">–</b></div>
+          <div>Wallet: <b id="walletAddress">–</b></div>
+        </div>
+        <button class="btn-gradient" onclick="connectWallet()">Connect wallet</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <!-- PLAYER PANEL -->
+      <div class="card card-narrow">
+        <div class="card-header">
+          <h2>Player panel</h2>
+          <p class="subtitle-small">Balances</p>
+        </div>
+
+        <div class="player-stats">
+          <div>
+            <div class="label">ETH</div>
+            <div class="value" id="ethBalance">–</div>
+          </div>
+          <div>
+            <div class="label">Survival tokens</div>
+            <div class="value" id="tokenBalance">–</div>
+          </div>
+        </div>
+
+        <p class="hint">
+          Connect MetaMask (Sepolia) to create bunkers and join with test ETH.
+        </p>
+      </div>
+
+      <!-- CREATE BUNKER -->
+      <div class="card card-wide">
+        <div class="card-header">
+          <h2>Create bunker</h2>
+          <p class="subtitle-small">Campaign settings</p>
+        </div>
+
+        <div class="form-group">
+          <label>Bunker name</label>
+          <input id="bunkerName" value="Sector 7 Shelter" />
+        </div>
+
+        <div class="form-group">
+          <label>Entry pool goal (ETH)</label>
+          <input id="bunkerGoal" value="0.05" />
+        </div>
+
+        <div class="form-group">
+          <label>Duration (days)</label>
+          <input id="bunkerDuration" value="1" />
+        </div>
+
+        <button class="btn-primary" onclick="createBunker()">Create bunker</button>
+      </div>
+    </div>
+
+    <!-- AVAILABLE BUNKERS -->
+    <div class="card card-full">
+      <div class="row-between">
+        <div>
+          <h2>Available bunkers</h2>
+          <p class="subtitle-small">Join and automatically register your address in bunker players list.</p>
+        </div>
+        <button class="btn-secondary" onclick="loadBunkers()">Refresh list</button>
+      </div>
+
+      <div id="bunkersContainer" class="bunkers-container"></div>
+    </div>
+
+    <!-- PLAYERS LIST -->
+    <div class="card card-full">
+      <div class="row-between">
+        <div>
+          <h2>Bunker players</h2>
+          <p class="subtitle-small">
+            Current bunker: <b id="currentBunkerLabel">–</b>
+          </p>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn-secondary" onclick="clearPlayersForCurrent()">Clear current</button>
+          <button class="btn-secondary" onclick="clearAllPlayers()">Clear all</button>
+        </div>
+      </div>
+
+      <div id="playersBox" class="bunkers-container" style="margin-top:10px;"></div>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
