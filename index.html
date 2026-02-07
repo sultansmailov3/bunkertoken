@@ -1,0 +1,82 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Bunker Game</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <h1> Bunker</h1>
+      <div id="roomBadge" class="badge">Room: </div>
+      <div id="phaseBadge" class="badge">Phase: </div>
+      <div id="timerBadge" class="badge">Timer: </div>
+    </header>
+
+    <section id="auth" class="card">
+      <h2>Join / Create</h2>
+      <div class="row">
+        <input id="name" placeholder="Your name" />
+        <button id="createBtn">Create room</button>
+      </div>
+      <div class="row">
+        <input id="roomId" placeholder="ROOM ID (e.g. A1B2C3)" />
+        <button id="joinBtn">Join room</button>
+      </div>
+      <p class="muted" id="err"></p>
+    </section>
+
+    <main id="game" class="grid hidden">
+      <section class="card">
+        <h2>Players</h2>
+        <div id="players"></div>
+        <div id="hostControls" class="host hidden">
+          <button id="startRoundBtn">Start round</button>
+          <button id="toVotingBtn">Go to voting</button>
+          <button id="finishVotingBtn">Finish voting</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>My cards</h2>
+        <div id="myCards"></div>
+
+        <h3>Reveal (only in Round)</h3>
+        <div class="row wrap">
+          <button class="reveal" data-key="profession">Profession</button>
+          <button class="reveal" data-key="health">Health</button>
+          <button class="reveal" data-key="hobby">Hobby</button>
+          <button class="reveal" data-key="baggage">Baggage</button>
+          <button class="reveal" data-key="phobia">Phobia</button>
+        </div>
+
+        <h3>Voice chat</h3>
+        <div class="row">
+          <button id="voiceOn"> Start voice</button>
+          <button id="voiceOff"> Stop</button>
+        </div>
+        <p class="muted">Voice is WebRTC mesh (good up to ~6 players).</p>
+      </section>
+
+      <section class="card chat">
+        <h2>Chat</h2>
+        <div id="chatBox" class="chatBox"></div>
+        <div class="row">
+          <input id="chatInput" placeholder="Type message..." />
+          <button id="sendMsg">Send</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Log</h2>
+        <div id="log" class="log"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+﻿*{box-sizing:border-box;font-family:system-ui,Segoe UI,Roboto,Arial}
+body{margin:0;background:#0b0f14;color:#e7eef7}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+.top{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+h1{margin:0}
+.badge{background:#142030;border:1px solid #26384f;padding:6px 10px;border-radius:10px}
+.card{background:#0f1722;border:1px solid #22344b;border-radius:16px;padding:14px;margin-top:12px}
+.row{display:flex;gap:10px;align-items:center}
+.row.wrap{flex-wrap:wrap}
+input{flex:1;min-width:200px;background:#0b1220;color:#e7eef7;border:1px solid #22344b;border-radius:12px;padding:10px}
+button{background:#1f6feb;border:0;color:white;padding:10px 12px;border-radius:12px;cursor:pointer}
+button:hover{opacity:.9}
+button.reveal{background:#2ea043}
+.muted{color:#93a4ba}
+.grid{display:grid;grid-template-columns:1.2fr 1fr;gap:12px}
+.chat{grid-column:2}
+.hidden{display:none}
+.player{display:flex;justify-content:space-between;align-items:center;padding:8px;border-bottom:1px solid #22344b}
+.player small{color:#93a4ba}
+.dead{opacity:.45}
+.voteBtn{background:#f59e0b}
+.chatBox{height:240px;overflow:auto;background:#0b1220;border:1px solid #22344b;border-radius:12px;padding:10px}
+.log{height:180px;overflow:auto;background:#0b1220;border:1px solid #22344b;border-radius:12px;padding:10px}
+.host button{background:#a855f7}
+@media (max-width: 900px){
+  .grid{grid-template-columns:1fr}
+  .chat{grid-column:auto}
+}

@@ -1,259 +1,239 @@
-// ===============================
-// Bunker Survival DApp — app.js
-// ethers.js v5 + MetaMask (Sepolia)
-// ===============================
+﻿const socket = io();
 
-let provider;
-let signer;
-let bunkerContract;
+const el = (id) => document.getElementById(id);
 
-// === CONFIG ===
-const SEPOLIA_CHAIN_ID = "0xaa36a7"; // 11155111
-const CROWDFUNDING_ADDRESS = "0x2551462F9bAaA8dfd4BCE95b4e177e236b9FCF23";
+const auth = el("auth");
+const game = el("game");
+const err = el("err");
 
-// === ABI (BunkerCrowdfunding) ===
-const CROWDFUNDING_ABI = [
-  {
-    "inputs": [
-      { "internalType": "address", "name": "rewardTokenAddress", "type": "address" }
-    ],
-    "stateMutability": "nonpayable",
-    "type": "constructor"
-  },
-  {
-    "inputs": [
-      { "internalType": "string", "name": "name", "type": "string" },
-      { "internalType": "uint256", "name": "goalWei", "type": "uint256" },
-      { "internalType": "uint256", "name": "durationDays", "type": "uint256" }
-    ],
-    "name": "createBunker",
-    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [{ "internalType": "uint256", "name": "bunkerId", "type": "uint256" }],
-    "name": "contributeToBunker",
-    "outputs": [],
-    "stateMutability": "payable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "getBunkers",
-    "outputs": [
-      {
-        "components": [
-          { "internalType": "string", "name": "name", "type": "string" },
-          { "internalType": "uint256", "name": "goal", "type": "uint256" },
-          { "internalType": "uint256", "name": "totalFunded", "type": "uint256" },
-          { "internalType": "uint256", "name": "deadline", "type": "uint256" },
-          { "internalType": "bool", "name": "active", "type": "bool" }
-        ],
-        "internalType": "struct BunkerCrowdfunding.Bunker[]",
-        "name": "",
-        "type": "tuple[]"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "rewardToken",
-    "outputs": [{ "internalType": "contract IRewardToken", "name": "", "type": "address" }],
-    "stateMutability": "view",
-    "type": "function"
-  }
-];
+const roomBadge = el("roomBadge");
+const phaseBadge = el("phaseBadge");
+const timerBadge = el("timerBadge");
 
-// === ABI (ERC-20 minimal) ===
-const ERC20_ABI = [
-  {
-    "inputs": [{ "name": "owner", "type": "address" }],
-    "name": "balanceOf",
-    "outputs": [{ "type": "uint256" }],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "decimals",
-    "outputs": [{ "type": "uint8" }],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "symbol",
-    "outputs": [{ "type": "string" }],
-    "stateMutability": "view",
-    "type": "function"
-  }
-];
+const playersEl = el("players");
+const myCardsEl = el("myCards");
+const logEl = el("log");
 
-// === HELPERS ===
-function setText(id, text) {
-  const el = document.getElementById(id);
-  if (el) el.textContent = text;
-}
+const hostControls = el("hostControls");
+const startRoundBtn = el("startRoundBtn");
+const toVotingBtn = el("toVotingBtn");
+const finishVotingBtn = el("finishVotingBtn");
 
-async function checkNetwork() {
-  const chainId = await window.ethereum.request({ method: "eth_chainId" });
-  if (chainId !== SEPOLIA_CHAIN_ID) {
-    throw new Error("Please switch MetaMask to Sepolia test network");
-  }
-}
+const chatBox = el("chatBox");
+const chatInput = el("chatInput");
+const sendMsg = el("sendMsg");
 
-// === CONNECT WALLET ===
-window.connectWallet = async function () {
-  if (!window.ethereum) {
-    alert("MetaMask not found");
-    return;
-  }
+let lastState = null;
+let privateState = null;
 
-  try {
-    await checkNetwork();
+let localStream = null;
+const peers = new Map(); // socketId -> RTCPeerConnection
 
-    provider = new ethers.providers.Web3Provider(window.ethereum);
-    await provider.send("eth_requestAccounts", []);
-    signer = provider.getSigner();
+function setError(t){ err.textContent = t || ""; }
 
-    bunkerContract = new ethers.Contract(
-      CROWDFUNDING_ADDRESS,
-      CROWDFUNDING_ABI,
-      signer
-    );
-
-    await updateBalances();
-    await loadBunkers();
-
-    window.ethereum.on("accountsChanged", () => window.location.reload());
-    window.ethereum.on("chainChanged", () => window.location.reload());
-
-  } catch (err) {
-    alert(err.message);
-  }
+el("createBtn").onclick = () => {
+  setError("");
+  socket.emit("room:create", { name: el("name").value.trim() || "Host" });
 };
 
-// === UPDATE BALANCES ===
-async function updateBalances() {
-  const user = await signer.getAddress();
-
-  // ETH
-  const ethBal = await provider.getBalance(user);
-  setText("ethBalance", ethers.utils.formatEther(ethBal));
-
-  // Token
-  try {
-    const tokenAddress = await bunkerContract.rewardToken();
-    const token = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
-
-    const [decimals, symbol, raw] = await Promise.all([
-      token.decimals(),
-      token.symbol(),
-      token.balanceOf(user)
-    ]);
-
-    setText(
-      "tokenBalance",
-      ethers.utils.formatUnits(raw, decimals) + " " + symbol
-    );
-  } catch {
-    setText("tokenBalance", "–");
-  }
-}
-
-// === CREATE BUNKER ===
-window.createBunker = async function () {
-  if (!bunkerContract) {
-    alert("Connect wallet first");
-    return;
-  }
-
-  const name = document.getElementById("bunkerName").value;
-  const goal = document.getElementById("bunkerGoal").value;
-  const days = document.getElementById("bunkerDuration").value;
-
-  if (!name || !goal || !days) {
-    alert("Fill all fields");
-    return;
-  }
-
-  try {
-    const tx = await bunkerContract.createBunker(
-      name,
-      ethers.utils.parseEther(goal),
-      days
-    );
-    await tx.wait();
-
-    await updateBalances();
-    await loadBunkers();
-  } catch (e) {
-    alert("Create bunker failed");
-    console.error(e);
-  }
+el("joinBtn").onclick = () => {
+  setError("");
+  socket.emit("room:join", { roomId: el("roomId").value.trim(), name: el("name").value.trim() || "Player" });
 };
 
-// === LOAD BUNKERS ===
-window.loadBunkers = async function () {
-  if (!bunkerContract) return;
+startRoundBtn.onclick = () => socket.emit("game:startRound");
+toVotingBtn.onclick = () => socket.emit("game:toVoting");
+finishVotingBtn.onclick = () => socket.emit("game:finishVoting");
 
-  const box = document.getElementById("bunkersContainer");
-  box.innerHTML = "";
+document.querySelectorAll(".reveal").forEach(btn => {
+  btn.onclick = () => socket.emit("game:reveal", { key: btn.dataset.key });
+});
 
-  try {
-    const bunkers = await bunkerContract.getBunkers();
+sendMsg.onclick = sendChat;
+chatInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendChat(); });
 
-    if (bunkers.length === 0) {
-      box.innerHTML = "<div>No bunkers yet</div>";
-      return;
+function sendChat(){
+  const text = chatInput.value.trim();
+  if (!text) return;
+  socket.emit("chat:msg", { text });
+  chatInput.value = "";
+}
+
+socket.on("errorMsg", setError);
+
+socket.on("state", (state) => {
+  lastState = state;
+  auth.classList.add("hidden");
+  game.classList.remove("hidden");
+
+  roomBadge.textContent = `Room: ${state.id}`;
+  phaseBadge.textContent = `Phase: ${state.phase} | Round: ${state.round}`;
+
+  renderPlayers(state);
+  renderLog(state);
+  renderTimer(state);
+
+  const isHost = state.hostSocketId === socket.id;
+  hostControls.classList.toggle("hidden", !isHost);
+
+  if (localStream) syncVoicePeers();
+});
+
+socket.on("private", (p) => {
+  privateState = p;
+  renderMyCards();
+});
+
+socket.on("chat:msg", (m) => {
+  const line = document.createElement("div");
+  const time = new Date(m.ts).toLocaleTimeString();
+  line.textContent = `[${time}] ${m.from}: ${m.text}`;
+  chatBox.appendChild(line);
+  chatBox.scrollTop = chatBox.scrollHeight;
+});
+
+function renderPlayers(state){
+  playersEl.innerHTML = "";
+  state.players.forEach(p => {
+    const row = document.createElement("div");
+    row.className = "player" + (p.alive ? "" : " dead");
+
+    const left = document.createElement("div");
+    left.innerHTML = `<b>${p.name}</b> <small>${p.socketId === state.hostSocketId ? "(host)" : ""}</small><br/>
+      <small>
+        Profession: ${p.cards.profession ?? "?"} |
+        Health: ${p.cards.health ?? "?"} |
+        Hobby: ${p.cards.hobby ?? "?"} |
+        Baggage: ${p.cards.baggage ?? "?"} |
+        Phobia: ${p.cards.phobia ?? "?"}
+      </small>`;
+
+    const right = document.createElement("div");
+    const votes = state.votesCount[p.socketId] || 0;
+    right.innerHTML = `<small>Votes: ${votes}</small><br/>`;
+
+    if (state.phase === "voting" && p.alive && p.socketId !== socket.id) {
+      const b = document.createElement("button");
+      b.className = "voteBtn";
+      b.textContent = "Vote";
+      b.onclick = () => socket.emit("game:vote", { targetSocketId: p.socketId });
+      right.appendChild(b);
     }
 
-    bunkers.forEach((b, i) => {
-      box.innerHTML += `
-        <div class="card">
-          <div class="bunker-title">${b.name}</div>
-          <div class="bunker-meta">Goal: ${ethers.utils.formatEther(b.goal)} ETH</div>
-          <div class="bunker-meta">Funded: ${ethers.utils.formatEther(b.totalFunded)} ETH</div>
-          <div class="bunker-meta">Status: ${b.active ? "Active" : "Closed"}</div>
-          <div class="contrib-row">
-            <input id="v${i}" placeholder="0.01" />
-            <button onclick="joinBunker(${i})" ${b.active ? "" : "disabled"}>
-              Join
-            </button>
-          </div>
-        </div>
-      `;
-    });
-  } catch (e) {
-    box.innerHTML = "<div>Error loading bunkers</div>";
-    console.error(e);
-  }
+    row.appendChild(left);
+    row.appendChild(right);
+    playersEl.appendChild(row);
+  });
+}
+
+function renderMyCards(){
+  if (!privateState) return;
+  const c = privateState.myCards;
+  myCardsEl.innerHTML = `
+    <div class="muted">Visible only to you:</div>
+    <ul>
+      <li><b>Profession:</b> ${c.profession}</li>
+      <li><b>Health:</b> ${c.health}</li>
+      <li><b>Hobby:</b> ${c.hobby}</li>
+      <li><b>Baggage:</b> ${c.baggage}</li>
+      <li><b>Phobia:</b> ${c.phobia}</li>
+    </ul>
+  `;
+}
+
+function renderLog(state){
+  logEl.innerHTML = "";
+  state.log.forEach(s => {
+    const div = document.createElement("div");
+    div.textContent = " " + s;
+    logEl.appendChild(div);
+  });
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+function renderTimer(state){
+  if (!state.roundEndsAt) { timerBadge.textContent = "Timer: "; return; }
+  const left = Math.max(0, state.roundEndsAt - Date.now());
+  timerBadge.textContent = `Timer: ${Math.ceil(left/1000)}s`;
+}
+
+setInterval(() => {
+  if (lastState) renderTimer(lastState);
+}, 300);
+
+// ---------- Voice (WebRTC mesh) ----------
+el("voiceOn").onclick = async () => {
+  if (localStream) return;
+  localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+  syncVoicePeers(true);
 };
 
-// === JOIN BUNKER ===
-window.joinBunker = async function (id) {
-  const input = document.getElementById("v" + id);
-  const amount = input.value.trim().replace(",", ".");
+el("voiceOff").onclick = () => stopVoice();
 
-  if (!amount || Number(amount) <= 0) {
-    alert("Enter valid ETH amount");
-    return;
+function stopVoice(){
+  for (const pc of peers.values()) pc.close();
+  peers.clear();
+  if (localStream) {
+    localStream.getTracks().forEach(t => t.stop());
+    localStream = null;
+  }
+}
+
+function syncVoicePeers(makeOffers=false){
+  if (!lastState || !localStream) return;
+  const others = lastState.players.map(p => p.socketId).filter(id => id !== socket.id);
+
+  for (const otherId of others) {
+    if (!peers.has(otherId)) {
+      const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
+      peers.set(otherId, pc);
+
+      localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+      pc.ontrack = (e) => {
+        const audio = document.createElement("audio");
+        audio.autoplay = true;
+        audio.srcObject = e.streams[0];
+        document.body.appendChild(audio);
+      };
+
+      pc.onicecandidate = (e) => {
+        if (e.candidate) socket.emit("rtc:signal", { to: otherId, data: { type: "ice", candidate: e.candidate } });
+      };
+    }
   }
 
-  try {
-    const tx = await bunkerContract.contributeToBunker(id, {
-      value: ethers.utils.parseEther(amount)
-    });
-    await tx.wait();
-
-    input.value = "";
-    await updateBalances();
-    await loadBunkers();
-  } catch (e) {
-    alert("Transaction failed");
-    console.error(e);
+  for (const id of [...peers.keys()]) {
+    if (!others.includes(id)) { peers.get(id).close(); peers.delete(id); }
   }
-};
+
+  if (makeOffers) {
+    for (const [otherId, pc] of peers.entries()) {
+      createOffer(otherId, pc).catch(console.error);
+    }
+  }
+}
+
+async function createOffer(to, pc){
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  socket.emit("rtc:signal", { to, data: { type: "offer", sdp: offer.sdp } });
+}
+
+socket.on("rtc:signal", async ({ from, data }) => {
+  if (!localStream) return;
+  if (!peers.has(from)) syncVoicePeers(false);
+  const pc = peers.get(from);
+  if (!pc) return;
+
+  if (data.type === "offer") {
+    await pc.setRemoteDescription({ type: "offer", sdp: data.sdp });
+    const ans = await pc.createAnswer();
+    await pc.setLocalDescription(ans);
+    socket.emit("rtc:signal", { to: from, data: { type: "answer", sdp: ans.sdp } });
+  } else if (data.type === "answer") {
+    await pc.setRemoteDescription({ type: "answer", sdp: data.sdp });
+  } else if (data.type === "ice") {
+    try { await pc.addIceCandidate(data.candidate); } catch {}
+  }
+});
